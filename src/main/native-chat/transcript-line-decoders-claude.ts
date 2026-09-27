@@ -15,6 +15,7 @@ import {
 } from '../ai-vault/session-scanner-values'
 import { imageSourcePathFromText } from '../../shared/native-chat-image-transcript-markers'
 import { claudeContentBlocks } from './transcript-record-blocks'
+import { unwrapClaudePastedContent } from './claude-pasted-content'
 import { claudeInterruptedMessageId } from './transcript-turn-markers'
 
 const MAX_EDIT_PATCH_HUNKS = 40
@@ -124,10 +125,18 @@ export function decodeClaudeTranscriptLine(
   return {
     id: messageId ?? fallbackId,
     role: claudeMessageRole(role, blocks),
-    blocks,
+    blocks: role === 'user' ? blocks.map(withoutPastedContentWrapper) : blocks,
     timestamp,
     source: 'transcript'
   }
+}
+
+function withoutPastedContentWrapper(block: NativeChatBlock): NativeChatBlock {
+  if (block.type !== 'text') {
+    return block
+  }
+  const text = unwrapClaudePastedContent(block.text)
+  return text === block.text ? block : { ...block, text }
 }
 
 // Keep only genuine image companion records; a marker mixed with prose must
